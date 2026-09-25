@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sisyphus &amp; the Fly — a neuroevolution myth in 3D</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%B0%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<style>
+  :root{
+    --sky-top: #1b1030;
+    --sky-horizon: #e8a660;
+    --paper: #f4ecdd;
+    --paper-dim: #e6d9c1;
+    --ink: #241a12;
+    --ink-soft: #5c4f3d;
+    --gold: #c99a4a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: linear-gradient(180deg, #14101c 0%, #1c1420 100%);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    display:flex;
+    justify-content:center;
+    padding: 28px 16px 60px;
+  }
+  .sheet{ width:100%; max-width: 980px; }
+  header{ padding: 6px 4px 22px; color: var(--paper); }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight: 600;
+    font-size: clamp(28px, 4.4vw, 44px);
+    line-height: 1.08;
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
+  }
+  h1 em{ font-style: italic; font-weight: 500; color: var(--gold); }
+  header p{ max-width: 62ch; color: #d8cfe0; font-size: 15px; line-height: 1.55; margin: 0; }
+
+  .stage{
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    border: 1px solid rgba(255,255,255,0.08);
+    background: #10131f;
+  }
+  #sim{ display:block; width:100%; aspect-ratio: 16/9; touch-action: none; }
+
+  .plaque{
+    position:absolute; top: 14px; left: 14px;
+    background: rgba(20, 14, 10, 0.55);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 10px;
+    padding: 10px 16px;
+    color: var(--paper);
+    font-size: 13px;
+    display:flex; gap: 18px; flex-wrap: wrap;
+    pointer-events: none;
+  }
+  .plaque .stat b{
+    display:block; font-family:'Fraunces', serif; font-size: 19px; font-weight: 600; color: #fff; line-height:1.15;
+  }
+  .plaque .stat span{ color: #cfc3dc; font-size: 10.5px; letter-spacing: 0.02em; }
+
+  .hint{
+    position:absolute; top:14px; right:14px;
+    background: rgba(20,14,10,0.5);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: rgba(255,255,255,0.75);
+    font-size: 11.5px;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    pointer-events: none;
+  }
+
+  .staminaWrap{
+    position:absolute; bottom: 46px; right: 18px;
+    width: 12px; height: 34%;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 6px;
+    overflow:hidden;
+    pointer-events:none;
+  }
+  .staminaFill{
+    position:absolute; bottom:0; left:0; width:100%;
+    background: linear-gradient(180deg, #e8a660, #c99a4a);
+    transition: height 0.12s linear;
+  }
+  .staminaLabel{
+    position:absolute; bottom: 20px; right: 12px;
+    font-size: 10.5px; color: rgba(255,255,255,0.65);
+    pointer-events:none;
+  }
+
+  .caption{
+    position:absolute; bottom: 12px; left: 14px; right: 100px;
+    color: rgba(255,255,255,0.72);
+    font-size: 12.5px; font-style: italic; font-family: 'Fraunces', serif;
+    pointer-events:none;
+  }
+
+  .panel{
+    margin-top: 22px;
+    background: var(--paper);
+    border-radius: 14px;
+    border: 1px solid rgba(0,0,0,0.06);
+    padding: 22px 24px 24px;
+    display:grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 26px;
+  }
+  @media (max-width: 720px){ .panel{ grid-template-columns: 1fr; } }
+  .panel h2{ font-family:'Fraunces', serif; font-weight:600; font-size: 17px; margin: 0 0 14px; color: var(--ink); }
+  .row{ display:flex; gap:10px; margin-bottom: 12px; flex-wrap: wrap; }
+  button{
+    font-family:'Inter', sans-serif; font-size: 13.5px; font-weight: 600;
+    padding: 10px 16px; border-radius: 8px; border: 1px solid var(--ink);
+    background: var(--ink); color: var(--paper); cursor: pointer;
+    transition: transform 0.08s ease, opacity 0.15s ease;
+  }
+  button.secondary{ background: transparent; color: var(--ink); }
+  button:hover{ opacity: 0.85; }
+  button:active{ transform: scale(0.97); }
+  .field{ margin-bottom: 14px; }
+  .field label{ display:flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 6px; }
+  .field label b{ color: var(--ink); font-weight:600; }
+  input[type=range]{ width:100%; accent-color: var(--gold); }
+  .divider{ border: none; border-top: 1px solid var(--paper-dim); margin: 16px 0; }
+  .readout{ display:grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 4px; }
+  .readout div{ background: var(--paper-dim); border-radius: 8px; padding: 10px 12px; }
+  .readout div span{ display:block; font-size: 11px; color: var(--ink-soft); margin-bottom: 3px; }
+  .readout div b{ font-family:'Fraunces', serif; font-size: 18px; font-weight:600; }
+  .chart-col canvas{ width: 100%; height: 160px; background: var(--paper-dim); border-radius: 8px; display:block; }
+  .legend{ display:flex; gap: 16px; font-size: 12px; color: var(--ink-soft); margin-top: 8px; }
+  .legend span{ display:flex; align-items:center; gap:6px; }
+  .swatch{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+  footer{ margin-top: 22px; color: #a89bb8; font-size: 12.5px; line-height: 1.6; padding: 0 4px; }
+  footer a{ color: var(--gold); }
+
+  .modal-overlay{
+    position: fixed; inset: 0; background: rgba(12, 8, 16, 0.72);
+    display:flex; align-items:center; justify-content:center;
+    z-index: 60; padding: 20px;
+  }
+  .modal-overlay[hidden]{ display:none; }
+  .modal-card{
+    background: var(--paper);
+    border-radius: 16px;
+    padding: 28px 30px 24px;
+    width: 100%; max-width: 640px;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  }
+  .modal-card h2{
+    font-family:'Fraunces', serif; font-weight:600; font-size: 22px; margin: 0 0 4px;
+  }
+  .modal-card .sub{ color: var(--ink-soft); font-size: 13px; margin: 0 0 18px; }
+  .modal-card canvas{ width:100%; height: 260px; background: var(--paper-dim); border-radius: 10px; display:block; }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header>
+    <h1>Sisyphus, recast as <em>a fruit fly</em></h1>
+    <p>A tiny neural network — about fifty numbers, brain-sized for a fly — learns by trial and error to push a boulder up a hill that keeps getting steeper. It never gets to stop. Drag to orbit the scene; scroll to zoom.</p>
+  </header>
+
+  <div class="stage">
+    <canvas id="sim"></canvas>
+    <div class="plaque">
+      <div class="stat"><b id="genReadout">0</b><span>generation</span></div>
+      <div class="stat"><b id="bestReadout">0%</b><span>best height, ever</span></div>
+      <div class="stat"><b id="liveReadout">0%</b><span>height, right now</span></div>
+      <div class="stat"><b id="stuckReadout">0</b><span>stuck &amp; reset</span></div>
+    </div>
+    <div class="hint">drag to orbit &middot; scroll to zoom</div>
+    <div class="staminaWrap"><div class="staminaFill" id="staminaFill" style="height:100%"></div></div>
+    <div class="staminaLabel">stamina</div>
+    <div class="caption" id="captionText">Not started yet — press "Start sim" below.</div>
+  </div>
+
+  <div class="panel">
+    <div class="controls-col">
+      <h2>Train the fly</h2>
+      <div class="row">
+        <button id="toggleTrain">Start sim</button>
+        <button id="resetBtn" class="secondary">Reset from scratch</button>
+      </div>
+
+      <div class="field">
+        <label>Generations per second <b id="speedLabel">3</b></label>
+        <input type="range" id="speedSlider" min="1" max="12" value="3">
+      </div>
+      <div class="field">
+        <label>Mutation strength <b id="mutLabel">0.35</b></label>
+        <input type="range" id="mutSlider" min="5" max="80" value="35">
+      </div>
+
+      <hr class="divider">
+      <div class="readout">
+        <div><span>Population</span><b id="popReadout">40</b></div>
+        <div><span>Avg fitness</span><b id="avgReadout">0.00</b></div>
+        <div><span>Elapsed sim-time</span><b id="timeReadout">0s</b></div>
+      </div>
+    </div>
+
+    <div class="chart-col">
+      <h2>Fitness across generations</h2>
+      <canvas id="chart" width="600" height="320"></canvas>
+      <div class="legend">
+        <span><i class="swatch" style="background:#c99a4a"></i>best of generation</span>
+        <span><i class="swatch" style="background:#5c4f3d"></i>population average</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Fitness rewards holding the boulder high, not just touching the top once — so a well-trained fly is still fighting a losing, endless battle rather than "solving" the hill. The brain is a small from-scratch neuroevolved network (≈49 weights), not Google/Janelia's real FlyWire fruit-fly connectome — that dataset maps ~140,000 real neurons and needs research-scale compute, far beyond a browser. The page renders with <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a>, loaded from a CDN, so it needs an internet connection at runtime — everything else is self-contained and needs no backend, so it deploys as-is on Netlify: drag this folder onto <a href="https://app.netlify.com/drop" target="_blank" rel="noopener">app.netlify.com/drop</a>, or push it to a repo and connect it as a site.
+  </footer>
+</div>
+
+<div class="modal-overlay" id="summaryModal" hidden>
+  <div class="modal-card">
+    <h2>Session summary</h2>
+    <p class="sub" id="summarySub">Here's everything the fly learned before you stopped it.</p>
+    <canvas id="summaryChart" width="900" height="360"></canvas>
+    <div class="legend">
+      <span><i class="swatch" style="background:#c99a4a"></i>best of generation</span>
+      <span><i class="swatch" style="background:#5c4f3d"></i>population average</span>
+    </div>
+    <div class="readout" id="summaryStats" style="grid-template-columns: repeat(2,1fr); margin-top:16px;"></div>
+    <div class="row" style="margin-top:18px;">
+      <button id="continueBtn">Continue training</button>
+      <button id="closeSummaryBtn" class="secondary">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ================= neural network =================
+  const N_IN = 4, N_HID = 8, N_OUT = 1;
+  const W_COUNT = (N_IN*N_HID + N_HID) + (N_HID*N_OUT + N_OUT); // 49
+
+  function randomWeights(){
+    const w = new Float64Array(W_COUNT);
+    for(let i=0;i<W_COUNT;i++) w[i] = (Math.random()*2-1);
+    return w;
+  }
+
+  function forward(w, inputs){
+    const w1off = 0;
+    const b1off = N_IN*N_HID;
+    const w2off = b1off + N_HID;
+    const b2off = w2off + N_HID*N_OUT;
+    const h = new Array(N_HID);
+    for(let j=0;j<N_HID;j++){
+      let sum = w[b1off+j];
+      for(let i=0;i<N_IN;i++) sum += inputs[i]*w[w1off + i*N_HID + j];
+      h[j] = Math.tanh(sum);
+    }
+    let out = w[b2off];
+    for(let j=0;j<N_HID;j++) out += h[j]*w[w2off+j];
+    return 1/(1+Math.exp(-out));
+  }
+
+  // ================= physics / world =================
+  const TRACK_LEN = 40;
+  const ANGLE_MIN = 14 * Math.PI/180;
+  const ANGLE_MAX = 58 * Math.PI/180;
+  const G = 9.81;
+  const MU = 1.55;
+  const F_MAX = 17;
+  const STAMINA_DRAIN = 0.9;
+  const STAMINA_REGEN = 0.22;
+  const FLY_GAP = 1.2; // fixed distance the fly trails behind the boulder along the slope — also the boulder's resting floor, so they can never occupy the same spot
+  const DT_HEAD = 0.05;
+  const EPISODE_T = 18;
+  const HEAD_STEPS = Math.round(EPISODE_T/DT_HEAD);
+
+  function angleAt(s){
+    const t = Math.min(Math.max(s/TRACK_LEN,0),1);
+    return ANGLE_MIN + (ANGLE_MAX-ANGLE_MIN)*t;
+  }
+
+  function stepPhysics(state, w, dt){
+    const theta = angleAt(state.s);
+    const inputs = [
+      state.s/TRACK_LEN,
+      Math.max(-1, Math.min(1, state.v/12)),
+      (theta-ANGLE_MIN)/(ANGLE_MAX-ANGLE_MIN),
+      state.stamina
+    ];
+    const out = forward(w, inputs);
+    const F = out * F_MAX * state.stamina;
+    // stamina cost is tied to force actually delivered, not to what the network merely wants —
+    // so once stamina hits 0, F is also 0 regardless of "out", and stamina always starts regenerating.
+    const effort = F / F_MAX;
+    const delta = STAMINA_REGEN*dt*(1-effort) - STAMINA_DRAIN*dt*effort;
+    state.stamina = Math.min(1, Math.max(0, state.stamina + delta));
+    const a = F - G*Math.sin(theta) - MU*state.v;
+    state.v += a*dt;
+    state.s += state.v*dt;
+    if(state.s < FLY_GAP){ state.s = FLY_GAP; if(state.v<0) state.v = 0; }
+    if(state.s > TRACK_LEN){ state.s = TRACK_LEN; if(state.v>0) state.v = 0; }
+    state.pushIntensity = out;
+    return theta;
+  }
+
+  function runHeadless(w){
+    const state = {s:FLY_GAP, v:0, stamina:1};
+    let sumS = 0, maxS = 0;
+    for(let i=0;i<HEAD_STEPS;i++){
+      stepPhysics(state, w, DT_HEAD);
+      sumS += state.s;
+      if(state.s>maxS) maxS = state.s;
+    }
+    const avg = sumS/HEAD_STEPS;
+    return (avg/TRACK_LEN)*0.7 + (maxS/TRACK_LEN)*0.3;
+  }
+
+  // ================= genetic algorithm =================
+  let POP_SIZE = 40;
+  let mutationAmount = 0.35;
+  let population = [];
+  let fitnesses = [];
+  let generation = 0;
+  let bestEver = { w: null, fitness: -1 };
+  let history = [];
+
+  function initPopulation(){
+    population = Array.from({length:POP_SIZE}, randomWeights);
+    fitnesses = new Array(POP_SIZE).fill(0);
+    generation = 0;
+    bestEver = { w: population[0].slice(), fitness: -1 };
+    history = [];
+  }
+
+  function crossover(a,b){
+    const c = new Float64Array(W_COUNT);
+    for(let i=0;i<W_COUNT;i++) c[i] = Math.random()<0.5 ? a[i] : b[i];
+    return c;
+  }
+  function mutate(w){
+    for(let i=0;i<W_COUNT;i++){
+      if(Math.random() < 0.18) w[i] += (Math.random()*2-1)*mutationAmount;
+    }
+  }
+  function pickParent(sortedPop){
+    const half = Math.max(2, Math.floor(sortedPop.length/2));
+    return sortedPop[Math.floor(Math.random()*half)];
+  }
+
+  function evolveOneGeneration(){
+    for(let i=0;i<POP_SIZE;i++) fitnesses[i] = runHeadless(population[i]);
+    const order = population.map((_,i)=>i).sort((a,b)=>fitnesses[b]-fitnesses[a]);
+    const sorted = order.map(i=>population[i]);
+    const sortedFit = order.map(i=>fitnesses[i]);
+
+    if(sortedFit[0] > bestEver.fitness) bestEver = { w: sorted[0].slice(), fitness: sortedFit[0] };
+
+    const avg = fitnesses.reduce((a,b)=>a+b,0)/POP_SIZE;
+    generation++;
+    history.push({gen: generation, best: sortedFit[0], avg});
+    if(history.length > 400) history.shift();
+
+    const eliteCount = 4;
+    const next = [];
+    for(let i=0;i<eliteCount;i++) next.push(sorted[i].slice());
+    while(next.length < POP_SIZE){
+      const child = crossover(pickParent(sorted), pickParent(sorted));
+      mutate(child);
+      next.push(child);
+    }
+    population = next;
+    return { best: sortedFit[0], avg };
+  }
+
+  // ================= hill profile (2D math, extruded into 3D) =================
+  const SAMPLE_DS = 0.08;
+  const N_SAMPLES = Math.round(TRACK_LEN/SAMPLE_DS)+1;
+  const hillProfile = new Array(N_SAMPLES); // {x,y} in world units, y up
+
+  (function buildProfile(){
+    let x=0, y=0;
+    for(let i=0;i<N_SAMPLES;i++){
+      const s = i*SAMPLE_DS;
+      hillProfile[i] = {x, y};
+      const theta = angleAt(s);
+      x += Math.cos(theta)*SAMPLE_DS;
+      y += Math.sin(theta)*SAMPLE_DS;
+    }
+  })();
+
+  function posAtS(s){
+    const idx = Math.min(N_SAMPLES-2, Math.max(0, s/SAMPLE_DS));
+    const i0 = Math.floor(idx), i1 = i0+1;
+    const t = idx-i0;
+    const a = hillProfile[i0], b = hillProfile[i1];
+    return { x: a.x+(b.x-a.x)*t, y: a.y+(b.y-a.y)*t, theta: angleAt(s) };
+  }
+
+  // ================= three.js scene =================
+  const canvas = document.getElementById('sim');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x2a1f38, 30, 95);
+
+  const camera = new THREE.PerspectiveCamera(45, 16/9, 0.1, 500);
+  camera.position.set(6, 8, 16);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 4;
+  controls.maxDistance = 60;
+  controls.maxPolarAngle = Math.PI * 0.49;
+  controls.target.set(4, 2, 0);
+  controls.update();
+
+  // sky dome
+  (function buildSky(){
+    const skyCanvas = document.createElement('canvas');
+    skyCanvas.width = 8; skyCanvas.height = 256;
+    const sc = skyCanvas.getContext('2d');
+    const g = sc.createLinearGradient(0,0,0,256);
+    g.addColorStop(0, '#1b1030');
+    g.addColorStop(0.55, '#4a2f4f');
+    g.addColorStop(1, '#e8a660');
+    sc.fillStyle = g;
+    sc.fillRect(0,0,8,256);
+    const tex = new THREE.CanvasTexture(skyCanvas);
+    const skyGeo = new THREE.SphereGeometry(200, 24, 16);
+    const skyMat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false });
+    scene.add(new THREE.Mesh(skyGeo, skyMat));
+  })();
+
+  // lighting
+  scene.add(new THREE.HemisphereLight(0xbfa2ff, 0x2a1c12, 0.9));
+  const sun = new THREE.DirectionalLight(0xffd9a0, 1.15);
+  sun.position.set(-14, 26, 18);
+  scene.add(sun);
+  scene.add(new THREE.AmbientLight(0x40405a, 0.35));
+
+  // ground plane (grounds the ramp visually)
+  {
+    const groundGeo = new THREE.PlaneGeometry(400, 400);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x140f0c, roughness: 1, flatShading: true });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI/2;
+    ground.position.y = -3.4;
+    scene.add(ground);
+  }
+
+  // low-poly ramp mesh, extruded from the same profile used for physics
+  const HALF_W = 2.1;
+  const BASE_Y = -3.2;
+  function colorAt(t){
+    const c1 = new THREE.Color(0x241a12);
+    const c2 = new THREE.Color(0xc99a4a);
+    return c1.clone().lerp(c2, t);
+  }
+  (function buildRamp(){
+    const positions = [];
+    const colors = [];
+    const indices = [];
+    for(let i=0;i<N_SAMPLES;i++){
+      const p = hillProfile[i];
+      const t = i/(N_SAMPLES-1);
+      const col = colorAt(t);
+      // 0: top-front, 1: top-back, 2: bottom-front, 3: bottom-back
+      positions.push(p.x, p.y, -HALF_W);
+      positions.push(p.x, p.y,  HALF_W);
+      positions.push(p.x, BASE_Y, -HALF_W);
+      positions.push(p.x, BASE_Y,  HALF_W);
+      const shaded = col.clone().multiplyScalar(0.55);
+      colors.push(col.r, col.g, col.b);
+      colors.push(col.r, col.g, col.b);
+      colors.push(shaded.r, shaded.g, shaded.b);
+      colors.push(shaded.r, shaded.g, shaded.b);
+    }
+    for(let i=0;i<N_SAMPLES-1;i++){
+      const a0=i*4, a1=i*4+1, a2=i*4+2, a3=i*4+3;
+      const b0=(i+1)*4, b1=(i+1)*4+1, b2=(i+1)*4+2, b3=(i+1)*4+3;
+      // top surface
+      indices.push(a0,b0,a1, a1,b0,b1);
+      // front wall (-Z side)
+      indices.push(a0,a2,b0, a2,b2,b0);
+      // back wall (+Z side)
+      indices.push(a1,b1,a3, a3,b1,b3);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95, side: THREE.DoubleSide });
+    scene.add(new THREE.Mesh(geo, mat));
+  })();
+
+  // boulder
+  const BOULDER_R = 0.62;
+  const boulderMesh = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(BOULDER_R, 0),
+    new THREE.MeshStandardMaterial({ color: 0x8f8578, flatShading: true, roughness: 0.9 })
+  );
+  boulderMesh.scale.set(1, 0.92, 1.05);
+  scene.add(boulderMesh);
+
+  // fly
+  const flyGroup = new THREE.Group();
+  const bodyLen = 0.62;
+  const flyMat = new THREE.MeshStandardMaterial({ color: 0x5a3a26, flatShading: true, roughness: 0.7 });
+  const headMat = new THREE.MeshStandardMaterial({ color: 0x3a2a20, flatShading: true, roughness: 0.6 });
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0xb3283c, roughness: 0.4 });
+  const wingMat = new THREE.MeshStandardMaterial({ color: 0xdceeff, transparent: true, opacity: 0.45, side: THREE.DoubleSide, roughness: 0.2 });
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x241a12, roughness: 0.8 });
+
+  const body = new THREE.Mesh(new THREE.SphereGeometry(bodyLen*0.5, 8, 6), flyMat);
+  body.scale.set(1, 0.62, 0.62);
+  flyGroup.add(body);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(bodyLen*0.22, 8, 6), headMat);
+  head.position.set(bodyLen*0.55, 0, 0);
+  flyGroup.add(head);
+
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(bodyLen*0.1, 6, 6), eyeMat);
+  eye.position.set(bodyLen*0.62, bodyLen*0.05, 0);
+  flyGroup.add(eye);
+
+  const wingPivotL = new THREE.Group();
+  wingPivotL.position.set(-bodyLen*0.05, bodyLen*0.12, bodyLen*0.15);
+  const wingL = new THREE.Mesh(new THREE.PlaneGeometry(bodyLen*0.7, bodyLen*0.32), wingMat);
+  wingL.position.set(bodyLen*0.3, 0, 0);
+  wingPivotL.add(wingL);
+  flyGroup.add(wingPivotL);
+
+  const wingPivotR = new THREE.Group();
+  wingPivotR.position.set(-bodyLen*0.05, bodyLen*0.12, -bodyLen*0.15);
+  const wingR = new THREE.Mesh(new THREE.PlaneGeometry(bodyLen*0.7, bodyLen*0.32), wingMat);
+  wingR.position.set(bodyLen*0.3, 0, 0);
+  wingPivotR.add(wingR);
+  flyGroup.add(wingPivotR);
+
+  const legs = [];
+  [[0.15,0.15],[0.0,0.18],[0.15,-0.15]].forEach(([lx,lz])=>{
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(bodyLen*0.025, bodyLen*0.025, bodyLen*0.55, 5), legMat);
+    leg.position.set(bodyLen*lx, -bodyLen*0.15, bodyLen*lz*1.6);
+    leg.rotation.z = Math.PI/2.4 * (lz>0?1:-1) * 0.9;
+    flyGroup.add(leg);
+    legs.push(leg);
+  });
+
+  scene.add(flyGroup);
+
+  function setEntityTransforms(s, pushIntensity, t){
+    const boulderPos = posAtS(s);
+    const bn = { x: -Math.sin(boulderPos.theta), y: Math.cos(boulderPos.theta) };
+    boulderMesh.position.set(boulderPos.x + bn.x*BOULDER_R, boulderPos.y + bn.y*BOULDER_R, 0);
+    boulderMesh.rotation.z = -(s / BOULDER_R);
+
+    const flyS = s - FLY_GAP; // always exactly FLY_GAP behind the boulder — s can never go below FLY_GAP, so this never collapses to zero separation
+    const flyPos = posAtS(flyS);
+    const fn = { x: -Math.sin(flyPos.theta), y: Math.cos(flyPos.theta) };
+    const fr = bodyLen*0.5;
+    flyGroup.position.set(flyPos.x + fn.x*fr, flyPos.y + fn.y*fr, 0);
+    flyGroup.rotation.set(0,0,0);
+    flyGroup.rotation.z = flyPos.theta;
+
+    const flap = 0.25 + pushIntensity*0.9;
+    wingPivotL.rotation.z = Math.sin(t*30)*flap;
+    wingPivotR.rotation.z = -Math.sin(t*30)*flap;
+  }
+  setEntityTransforms(FLY_GAP, 0, 0);
+
+  function resizeRenderer(){
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if(w===0 || h===0) return;
+    camera.aspect = w/h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
+  }
+  window.addEventListener('resize', resizeRenderer);
+  resizeRenderer();
+
+  // camera follow rig
+  const smoothedTarget = new THREE.Vector3(4,2,0);
+  function followTarget(worldX, worldY){
+    const goal = new THREE.Vector3(worldX, worldY + 1.2, 0);
+    const prev = smoothedTarget.clone();
+    smoothedTarget.lerp(goal, 0.02);
+    const delta = smoothedTarget.clone().sub(prev);
+    camera.position.add(delta);
+    controls.target.copy(smoothedTarget);
+  }
+
+  // ================= live view state =================
+  const live = { s:FLY_GAP, v:0, stamina:1, t:0, pushIntensity:0, stuckTimer:0 };
+  const STUCK_V_EPS = 0.06;
+  const STUCK_TIME_LIMIT = 4;
+  let stuckFlashTimer = 0;
+  let stuckResetCount = 0;
+
+  function resetLive(){
+    live.s = FLY_GAP; live.v = 0; live.stamina = 1; live.t = 0;
+    live.pushIntensity = 0; live.stuckTimer = 0;
+    stuckFlashTimer = 1.4;
+    stuckResetCount++;
+  }
+
+  function stepLive(dt){
+    const w = bestEver.w || population[0];
+    stepPhysics(live, w, dt);
+    live.t += dt;
+    if(live.s > FLY_GAP + 0.15 && Math.abs(live.v) < STUCK_V_EPS) live.stuckTimer += dt;
+    else live.stuckTimer = 0;
+    if(live.stuckTimer >= STUCK_TIME_LIMIT) resetLive();
+    if(stuckFlashTimer > 0) stuckFlashTimer = Math.max(0, stuckFlashTimer - dt);
+  }
+
+  // ================= UI wiring =================
+  const genReadout = document.getElementById('genReadout');
+  const bestReadout = document.getElementById('bestReadout');
+  const liveReadout = document.getElementById('liveReadout');
+  const stuckReadout = document.getElementById('stuckReadout');
+  const captionText = document.getElementById('captionText');
+  const avgReadout = document.getElementById('avgReadout');
+  const timeReadout = document.getElementById('timeReadout');
+  const popReadout = document.getElementById('popReadout');
+  const toggleTrainBtn = document.getElementById('toggleTrain');
+  const resetBtn = document.getElementById('resetBtn');
+  const speedSlider = document.getElementById('speedSlider');
+  const speedLabel = document.getElementById('speedLabel');
+  const mutSlider = document.getElementById('mutSlider');
+  const mutLabel = document.getElementById('mutLabel');
+  const staminaFill = document.getElementById('staminaFill');
+
+  const summaryModal = document.getElementById('summaryModal');
+  const summaryStats = document.getElementById('summaryStats');
+  const continueBtn = document.getElementById('continueBtn');
+  const closeSummaryBtn = document.getElementById('closeSummaryBtn');
+
+  popReadout.textContent = POP_SIZE;
+
+  let training = false;
+  let hasStarted = false;
+  let lastAvg = 0;
+  let totalSimTime = 0;
+
+  function updateReadouts(){
+    genReadout.textContent = generation;
+    bestReadout.textContent = Math.round(Math.max(0,bestEver.fitness)*100) + '%';
+    liveReadout.textContent = Math.round((live.s/TRACK_LEN)*100) + '%';
+    avgReadout.textContent = lastAvg.toFixed(2);
+    timeReadout.textContent = Math.round(totalSimTime) + 's';
+    stuckReadout.textContent = stuckResetCount;
+    staminaFill.style.height = Math.round(live.stamina*100) + '%';
+
+    if(stuckFlashTimer > 0){
+      captionText.textContent = 'Stuck fast to the slope — sent back down to the bottom to try again.';
+    } else if(!hasStarted){
+      captionText.textContent = 'Not started yet — press "Start sim" below.';
+    } else if(training){
+      captionText.textContent = "Watching generation " + generation + "'s best fly. It gets no closer to the top than the last one did — only better technique.";
+    } else {
+      captionText.textContent = 'Paused. Press "Start sim" to continue, or check the summary.';
+    }
+  }
+
+  function drawChartOn(chartCtx, W, H){
+    chartCtx.clearRect(0,0,W,H);
+    if(history.length < 2) return;
+    const padL = 34, padR = 10, padT = 10, padB = 20;
+    const plotW = W-padL-padR, plotH = H-padT-padB;
+    const n = history.length;
+
+    chartCtx.strokeStyle = 'rgba(36,26,18,0.08)';
+    chartCtx.lineWidth = 1;
+    for(let i=0;i<=4;i++){
+      const y = padT + plotH*(i/4);
+      chartCtx.beginPath(); chartCtx.moveTo(padL,y); chartCtx.lineTo(W-padR,y); chartCtx.stroke();
+      chartCtx.fillStyle = 'rgba(92,79,61,0.7)';
+      chartCtx.font = '10px Inter, sans-serif';
+      chartCtx.textAlign = 'right';
+      chartCtx.fillText(Math.round((1-i/4)*100)+'%', padL-6, y+3);
+    }
+    function plot(key, color){
+      chartCtx.beginPath();
+      chartCtx.strokeStyle = color;
+      chartCtx.lineWidth = 2;
+      for(let i=0;i<n;i++){
+        const x = padL + plotW*(i/(n-1));
+        const y = padT + plotH*(1-history[i][key]);
+        if(i===0) chartCtx.moveTo(x,y); else chartCtx.lineTo(x,y);
+      }
+      chartCtx.stroke();
+    }
+    plot('avg', '#5c4f3d');
+    plot('best', '#c99a4a');
+  }
+
+  const miniChartCanvas = document.getElementById('chart');
+  const miniChartCtx = miniChartCanvas.getContext('2d');
+  function drawMiniChart(){ drawChartOn(miniChartCtx, miniChartCanvas.width, miniChartCanvas.height); }
+
+  const summaryChartCanvas = document.getElementById('summaryChart');
+  const summaryChartCtx = summaryChartCanvas.getContext('2d');
+  function drawSummaryChart(){ drawChartOn(summaryChartCtx, summaryChartCanvas.width, summaryChartCanvas.height); }
+
+  function openSummary(){
+    document.getElementById('summarySub').textContent =
+      generation === 0
+        ? "It hadn't trained a single generation yet — start it and let it run a while."
+        : "Here's everything the fly learned across " + generation + " generation" + (generation===1?"":"s") + " before you stopped it.";
+    summaryStats.innerHTML =
+      '<div><span>Generations trained</span><b>' + generation + '</b></div>' +
+      '<div><span>Best height ever reached</span><b>' + Math.round(Math.max(0,bestEver.fitness)*100) + '%</b></div>' +
+      '<div><span>Population average at stop</span><b>' + lastAvg.toFixed(2) + '</b></div>' +
+      '<div><span>Total sim-time run</span><b>' + Math.round(totalSimTime) + 's</b></div>' +
+      '<div><span>Times it got stuck &amp; reset</span><b>' + stuckResetCount + '</b></div>' +
+      '<div><span>Height when stopped</span><b>' + Math.round((live.s/TRACK_LEN)*100) + '%</b></div>';
+    drawSummaryChart();
+    summaryModal.hidden = false;
+  }
+  function closeSummary(){ summaryModal.hidden = true; }
+
+  toggleTrainBtn.addEventListener('click', () => {
+    if(!training){
+      training = true;
+      hasStarted = true;
+      toggleTrainBtn.textContent = 'Stop sim';
+      closeSummary();
+    } else {
+      training = false;
+      toggleTrainBtn.textContent = 'Start sim';
+      openSummary();
+    }
+    updateReadouts();
+  });
+
+  continueBtn.addEventListener('click', () => {
+    training = true;
+    toggleTrainBtn.textContent = 'Stop sim';
+    closeSummary();
+    updateReadouts();
+  });
+  closeSummaryBtn.addEventListener('click', closeSummary);
+
+  resetBtn.addEventListener('click', () => {
+    initPopulation();
+    live.s=FLY_GAP; live.v=0; live.stamina=1; live.t=0; live.pushIntensity=0; live.stuckTimer=0;
+    lastAvg = 0; totalSimTime = 0; stuckResetCount = 0;
+    training = false; hasStarted = false;
+    toggleTrainBtn.textContent = 'Start sim';
+    closeSummary();
+    setEntityTransforms(FLY_GAP,0,0);
+    updateReadouts();
+    drawMiniChart();
+  });
+
+  speedSlider.addEventListener('input', () => { speedLabel.textContent = speedSlider.value; });
+  mutSlider.addEventListener('input', () => {
+    mutationAmount = mutSlider.value/100;
+    mutLabel.textContent = mutationAmount.toFixed(2);
+  });
+
+  // ================= main loops =================
+  setInterval(() => {
+    if(training){
+      const gensPerSec = parseInt(speedSlider.value,10);
+      const gensThisTick = Math.max(1, Math.round(gensPerSec/6));
+      for(let i=0;i<gensThisTick;i++){
+        const {avg} = evolveOneGeneration();
+        lastAvg = avg;
+      }
+      drawMiniChart();
+    }
+    updateReadouts();
+  }, 166);
+
+  let lastFrameTime = performance.now();
+  function animate(now){
+    const dt = Math.min(0.05, (now-lastFrameTime)/1000);
+    lastFrameTime = now;
+    if(training){
+      stepLive(dt);
+      totalSimTime += dt;
+    }
+    setEntityTransforms(live.s, live.pushIntensity, live.t);
+    followTarget(boulderMesh.position.x, boulderMesh.position.y);
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+
+  // ================= boot =================
+  initPopulation();
+  updateReadouts();
+  drawMiniChart();
+  requestAnimationFrame(animate);
+
+})();
+</script>
+</body>
+</html>
