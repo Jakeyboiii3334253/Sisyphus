@@ -36,18 +36,3 @@ not a repackaging of that dataset.
   generation comes from crossover + mutation of top performers.
 - The canvas always shows the current best-ever network controlling the fly
   live, in real time, while training keeps running underneath it.
-
-## Deploying to Netlify
-
-This is a plain static site (just `index.html`), so any of these work:
-
-1. **Fastest:** go to [app.netlify.com/drop](https://app.netlify.com/drop)
-   and drag this folder (or just `index.html`) onto the page. It deploys
-   immediately and gives you a live URL.
-2. **Git-based:** push this folder to a GitHub/GitLab repo, then in Netlify
-   choose "Import an existing project" and point it at the repo. No build
-   command is needed — leave the publish directory as the repo root (or
-   wherever `index.html` lives).
-3. **Netlify CLI:** `netlify deploy --prod` from inside this folder.
-
-No environment variables, build steps, or backend are required.
